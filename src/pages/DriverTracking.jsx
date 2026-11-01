@@ -1,5 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { updateBusLocation } from "../services/busService";
+import {
+  driverSignIn,
+  driverSignOut,
+  watchAuth,
+  DRIVER_EMAIL,
+} from "../services/authService";
 import { STOPS } from "../data/stops";
 import { distanceInMeters } from "../utils/distanceCalculator";
 import { getBusStatus } from "../utils/busStatus";
@@ -26,11 +32,30 @@ function findNearestStop(lat, lng) {
 }
 
 export default function DriverTracking() {
+  const [user, setUser] = useState(undefined);
+  const [code, setCode] = useState("");
+  const [authError, setAuthError] = useState("");
   const [busId, setBusId] = useState("BUS001");
   const [tracking, setTracking] = useState(false);
   const [error, setError] = useState("");
   const watchRef = useRef(null);
   const lastPositionRef = useRef(null);
+
+  useEffect(() => {
+    const unsubscribe = watchAuth(setUser);
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    try {
+      await driverSignIn(code);
+      setCode("");
+    } catch (err) {
+      setAuthError("Wrong driver code");
+    }
+  };
 
   const start = () => {
     if (!navigator.geolocation) {
@@ -69,7 +94,7 @@ export default function DriverTracking() {
           speed: Math.round(speedKmh),
           status: getBusStatus(speedKmh, nearest.meters),
           nearestStop: nearest.stop.name,
-        });
+        }).catch((err) => setError(err.message));
       },
       (err) => setError(err.message),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
@@ -82,6 +107,37 @@ export default function DriverTracking() {
     updateBusLocation(busId, { status: "Stopped", speed: 0 });
     setTracking(false);
   };
+
+  const handleSignOut = async () => {
+    if (tracking) {
+      navigator.geolocation.clearWatch(watchRef.current);
+      await updateBusLocation(busId, { status: "Stopped", speed: 0 });
+      setTracking(false);
+    }
+    await driverSignOut();
+  };
+
+  if (user === undefined) {
+    return <p style={{ padding: 20 }}>Loading...</p>;
+  }
+
+  const isDriver = user && user.email === DRIVER_EMAIL;
+
+  if (!isDriver) {
+    return (
+      <form onSubmit={handleSignIn} style={{ padding: 20 }}>
+        <h2>Driver Access</h2>
+        <input
+          type="password"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Driver code"
+        />{" "}
+        <button type="submit">Enter</button>
+        {authError && <p style={{ color: "red" }}>{authError}</p>}
+      </form>
+    );
+  }
 
   return (
     <div style={{ padding: 20 }}>
@@ -103,7 +159,8 @@ export default function DriverTracking() {
           <button onClick={start}>Start Tracking</button>
         ) : (
           <button onClick={stop}>Stop Tracking</button>
-        )}
+        )}{" "}
+        <button onClick={handleSignOut}>Sign out</button>
       </div>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

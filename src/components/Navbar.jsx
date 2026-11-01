@@ -13,7 +13,6 @@ export default function Navbar() {
       }}
     >
       <Link to="/" style={{ color: "white" }}>Student Dashboard</Link>
-      <Link to="/driver" style={{ color: "white" }}>Driver Tracking</Link>
     </nav>
   );
 }
