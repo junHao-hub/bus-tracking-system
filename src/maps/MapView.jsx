@@ -1,11 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
   CircleMarker,
   Popup,
   Tooltip,
+  Polyline,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -22,7 +24,34 @@ function Recenter({ lat, lng }) {
   return null;
 }
 
-export default function MapView({ buses, selectedId, stops = [], selectedStopId }) {
+// Shows the coordinates of the clicked point, used to collect bus stop positions
+function CoordinatePicker() {
+  const [point, setPoint] = useState(null);
+
+  useMapEvents({
+    click(e) {
+      setPoint([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+
+  if (!point) return null;
+  return (
+    <Popup key={point.join(",")} position={point}>
+      <b>
+        {point[0].toFixed(6)}, {point[1].toFixed(6)}
+      </b>
+    </Popup>
+  );
+}
+
+export default function MapView({
+  buses,
+  selectedId,
+  stops = [],
+  selectedStopId,
+  route = [],
+  pickMode = false,
+}) {
   const selectedBus = buses.find((b) => b.id === selectedId);
 
   return (
@@ -38,7 +67,16 @@ export default function MapView({ buses, selectedId, stops = [], selectedStopId 
 
       <Recenter lat={selectedBus?.latitude} lng={selectedBus?.longitude} />
 
-      {/* Bus stops are drawn first so the buses appear on top */}
+      {pickMode && <CoordinatePicker />}
+
+      {/* The route is drawn first so stops and buses appear on top */}
+      {route.length > 1 && (
+        <Polyline
+          positions={route}
+          pathOptions={{ color: "#2563eb", weight: 5, opacity: 0.6 }}
+        />
+      )}
+
       {stops.map((s) => (
         <CircleMarker
           key={s.id}

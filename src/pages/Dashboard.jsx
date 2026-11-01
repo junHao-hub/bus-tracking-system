@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { subscribeBuses } from "../services/busService";
 import { STOPS } from "../data/stops";
+import { ROUTE } from "../data/route";
 import { distanceInMeters, formatDistance } from "../utils/distanceCalculator";
 import { calculateEtaMinutes, formatEta } from "../utils/etaCalculator";
 import BusCard from "../components/BusCard";
@@ -10,6 +11,10 @@ export default function Dashboard() {
   const [buses, setBuses] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [stopId, setStopId] = useState(STOPS[0].id);
+
+  // Add ?pick=1 to the address to turn on the coordinate picker
+  const pickMode =
+    new URLSearchParams(window.location.search).get("pick") === "1";
 
   useEffect(() => {
     const unsubscribe = subscribeBuses(setBuses);
@@ -79,7 +84,10 @@ export default function Dashboard() {
           selectedId={selectedId}
           stops={STOPS}
           selectedStopId={stopId}
-        />      </div>
+          route={ROUTE}
+          pickMode={pickMode}
+        />
+      </div>
     </div>
   );
 }
