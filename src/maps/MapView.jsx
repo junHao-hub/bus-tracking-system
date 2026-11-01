@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
-  CircleMarker,
+  Marker,
   Popup,
   Tooltip,
   Polyline,
@@ -10,6 +10,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { pickupIcon, destinationIcon, stopIcon, busIcon } from "./mapIcons";
 
 const DEFAULT_CENTER = [3.0568, 101.7012];
 
@@ -48,8 +49,10 @@ export default function MapView({
   buses,
   selectedId,
   stops = [],
-  selectedStopId,
+  pickupStopId,
+  destinationStopId,
   route = [],
+  routeColor = "#1d4ed8",
   pickMode = false,
 }) {
   const selectedBus = buses.find((b) => b.id === selectedId);
@@ -69,44 +72,66 @@ export default function MapView({
 
       {pickMode && <CoordinatePicker />}
 
-      {/* The route is drawn first so stops and buses appear on top */}
+      {/* The route is a dark line with a white edge, drawn first so stops and buses stay on top */}
       {route.length > 1 && (
-        <Polyline
-          positions={route}
-          pathOptions={{ color: "#2563eb", weight: 5, opacity: 0.6 }}
-        />
+        <>
+          <Polyline
+            positions={route}
+            pathOptions={{
+              color: "#ffffff",
+              weight: 11,
+              opacity: 0.95,
+              lineCap: "round",
+              lineJoin: "round",
+            }}
+          />
+          <Polyline
+            positions={route}
+            pathOptions={{
+              color: routeColor,
+              weight: 6,
+              opacity: 1,
+              lineCap: "round",
+              lineJoin: "round",
+            }}
+          />
+        </>
       )}
 
-      {stops.map((s) => (
-        <CircleMarker
-          key={s.id}
-          center={[s.latitude, s.longitude]}
-          radius={s.id === selectedStopId ? 10 : 7}
-          pathOptions={{
-            color: "#15803d",
-            fillColor: s.id === selectedStopId ? "#f59e0b" : "#22c55e",
-            fillOpacity: 1,
-          }}
-        >
-          <Tooltip permanent direction="top" offset={[0, -8]}>
-            {s.name}
-          </Tooltip>
-        </CircleMarker>
-      ))}
+      {stops.map((s) => {
+        let icon = stopIcon;
+        let role = null;
+        if (s.id === pickupStopId) {
+          icon = pickupIcon;
+          role = "Pickup";
+        } else if (s.id === destinationStopId) {
+          icon = destinationIcon;
+          role = "Destination";
+        }
+
+        return (
+          <Marker key={s.id} position={[s.latitude, s.longitude]} icon={icon}>
+            <Tooltip permanent direction="top">
+              {role && <div className="map-role">{role}</div>}
+              <div>{s.name}</div>
+            </Tooltip>
+          </Marker>
+        );
+      })}
 
       {buses
         .filter((b) => b.latitude && b.longitude)
         .map((b) => (
-          <CircleMarker
+          <Marker
             key={b.id}
-            center={[b.latitude, b.longitude]}
-            radius={b.id === selectedId ? 12 : 8}
-            pathOptions={{ color: b.id === selectedId ? "#2563eb" : "#dc2626" }}
+            position={[b.latitude, b.longitude]}
+            icon={busIcon()}
+            zIndexOffset={1000}
           >
             <Popup>
               {b.busNumber} - {b.status}
             </Popup>
-          </CircleMarker>
+          </Marker>
         ))}
     </MapContainer>
   );

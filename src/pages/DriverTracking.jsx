@@ -6,22 +6,25 @@ import {
   watchAuth,
   DRIVER_EMAIL,
 } from "../services/authService";
-import { STOPS } from "../data/stops";
+import { ROUTES } from "../data/routes";
 import { distanceInMeters } from "../utils/distanceCalculator";
 import { getBusStatus } from "../utils/busStatus";
 
-const BUS_LIST = [
-  { id: "BUS001", busNumber: "APU-BUS-01" },
-  { id: "BUS002", busNumber: "APU-BUS-02" },
-];
+// One bus per route, the driver picks a bus and so picks a route
+const BUS_LIST = ROUTES.map((route) => ({
+  id: route.busId,
+  busNumber: route.busName,
+  routeName: route.name,
+  stops: route.stops,
+}));
 
 // Movements smaller than this are treated as position noise
 const MIN_MOVE_METERS = 10;
 
-function findNearestStop(lat, lng) {
+function findNearestStop(stops, lat, lng) {
   let nearest = null;
   let nearestMeters = null;
-  STOPS.forEach((stop) => {
+  stops.forEach((stop) => {
     const meters = distanceInMeters(lat, lng, stop.latitude, stop.longitude);
     if (nearestMeters === null || meters < nearestMeters) {
       nearest = stop;
@@ -35,7 +38,7 @@ export default function DriverTracking() {
   const [user, setUser] = useState(undefined);
   const [code, setCode] = useState("");
   const [authError, setAuthError] = useState("");
-  const [busId, setBusId] = useState("BUS001");
+  const [busId, setBusId] = useState(BUS_LIST[0].id);
   const [tracking, setTracking] = useState(false);
   const [error, setError] = useState("");
   const watchRef = useRef(null);
@@ -86,7 +89,7 @@ export default function DriverTracking() {
 
         lastPositionRef.current = { latitude, longitude, timestamp: position.timestamp };
 
-        const nearest = findNearestStop(latitude, longitude);
+        const nearest = findNearestStop(bus.stops, latitude, longitude);
         updateBusLocation(busId, {
           busNumber: bus.busNumber,
           latitude,
@@ -149,7 +152,7 @@ export default function DriverTracking() {
       >
         {BUS_LIST.map((b) => (
           <option key={b.id} value={b.id}>
-            {b.busNumber}
+            {b.busNumber} - {b.routeName}
           </option>
         ))}
       </select>
