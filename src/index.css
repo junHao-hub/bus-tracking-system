@@ -841,3 +841,25 @@ body {
     drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
   user-select: none;
 }
+
+
+/* Tracking page */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.track-page .track-map {
+  height: 420px;
+}
+
+@media (max-width: 860px) {
+  .track-page .track-map {
+    height: 60vh;
+  }
+}

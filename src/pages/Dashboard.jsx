@@ -1,33 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  ArrowUpDown,
-  Heart,
-  Bus,
-  Clock,
-  Route as RouteIcon,
-  Activity,
-  Map as MapIcon,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowUpDown, Heart } from "lucide-react";
 import { subscribeBuses } from "../services/busService";
 import { ALL_STOPS, ROUTES, HUB_STOP } from "../data/routes";
-import { ROUTE_PATHS } from "../data/routePaths";
 import { listTrips } from "../utils/tripPlanner";
 import { formatClock, formatCountdown } from "../utils/timeUtils";
 import { useNow, DEMO_CLOCK } from "../hooks/useNow";
-import { useWeather } from "../hooks/useWeather";
 import { isBusLive } from "../utils/busLive";
-import { distanceInMeters, formatDistance } from "../utils/distanceCalculator";
-import {
-  calculateEtaMinutes,
-  applyRainDelay,
-  formatEta,
-} from "../utils/etaCalculator";
 import {
   favoriteKey,
   toggleFavorite,
   useFavorites,
 } from "../services/favoriteService";
-import MapView from "../maps/MapView";
 import WeatherCard from "../components/WeatherCard";
 
 function getGreeting(minutes) {
@@ -38,7 +22,6 @@ function getGreeting(minutes) {
 }
 
 function tripNote(trip, now) {
-  if (trip.status === "Unavailable") return "Departed";
   if (now < trip.departure) {
     return `Departs in ${formatCountdown(trip.departure - now)}`;
   }
@@ -60,33 +43,25 @@ function validDestinationId(pickupId, destinationId) {
     : options[0].id;
 }
 
-function Stat({ icon: Icon, label, value, valueClass = "" }) {
-  return (
-    <div className="stat">
-      <div className="stat-icon">
-        <Icon size={20} />
-      </div>
-      <div>
-        <div className="stat-label">{label}</div>
-        <div className={"stat-value " + valueClass}>{value}</div>
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const now = useNow();
-  const { weather } = useWeather();
-  const rainy = Boolean(weather && weather.rainy);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const favorites = useFavorites();
   const [buses, setBuses] = useState([]);
-  const [pickupId, setPickupId] = useState(HUB_STOP.id);
-  const [destinationId, setDestinationId] = useState(
-    destinationOptionsFor(HUB_STOP.id)[0].id
-  );
-  const [selectedTripId, setSelectedTripId] = useState(null);
-  const trackRef = useRef(null);
-  const scrollRef = useRef(null);
+
+  // The selected stops are kept in the address, so going back from the tracking page restores them
+  const [pickupId, setPickupId] = useState(() => {
+    const fromParam = params.get("from");
+    return ALL_STOPS.some((s) => s.id === fromParam) ? fromParam : HUB_STOP.id;
+  });
+  const [destinationId, setDestinationId] = useState(() => {
+    const fromParam = params.get("from");
+    const startId = ALL_STOPS.some((s) => s.id === fromParam)
+      ? fromParam
+      : HUB_STOP.id;
+    return validDestinationId(startId, params.get("to"));
+  });
 
   useEffect(() => {
     const unsubscribe = subscribeBuses(setBuses);
@@ -115,85 +90,27 @@ export default function Dashboard() {
     : null;
   const matchedLive = isBusLive(matchedBus);
 
-  const trips = listTrips(pickupId, destinationId, now);
-  const firstOpenId = (trips.find((t) => t.status !== "Unavailable") || {}).id;
-
-  // Only an Available trip can be tracked
-  const selectedTrip =
-    trips.find((t) => t.id === selectedTripId && t.status === "Available") ||
-    null;
-
-  // Scroll the list to the first trip that has not finished
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const target = container.querySelector("[data-first-open='true']");
-    if (target) {
-      container.scrollTop = target.offsetTop - 8;
-    }
-  }, [pickupId, destinationId]);
-
-  // On a phone, jump down to the tracking panel after a trip is tapped
-  useEffect(() => {
-    if (selectedTripId && window.innerWidth <= 860 && trackRef.current) {
-      trackRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [selectedTripId]);
+  // Trips that already finished are not shown
+  const trips = listTrips(pickupId, destinationId, now).filter(
+    (trip) => trip.status !== "Unavailable"
+  );
 
   const changePickup = (id) => {
     setPickupId(id);
     setDestinationId(validDestinationId(id, destinationId));
-    setSelectedTripId(null);
-  };
-
-  const changeDestination = (id) => {
-    setDestinationId(id);
-    setSelectedTripId(null);
   };
 
   const swap = () => {
     setPickupId(destinationId);
     setDestinationId(pickupId);
-    setSelectedTripId(null);
   };
 
+  // Only an Available trip opens the tracking page
   const handleSelect = (trip) => {
     if (trip.status === "Available") {
-      setSelectedTripId(trip.id);
+      navigate(`/track/${trip.id}?from=${pickupId}&to=${destinationId}`);
     }
   };
-
-  // Tracking details for the selected trip
-  let selectedRoute = null;
-  let trackedBus = null;
-  let live = false;
-  let target = null;
-  let targetLabel = "";
-  let meters = null;
-  let minutes = null;
-
-  if (selectedTrip) {
-    selectedRoute = ROUTES.find((r) => r.id === selectedTrip.routeId);
-    trackedBus = buses.find((b) => b.id === selectedRoute.busId) || null;
-    live = isBusLive(trackedBus);
-    const beforeDeparture = now < selectedTrip.departure;
-    target = beforeDeparture ? pickup : destination;
-    targetLabel = beforeDeparture ? "to your pickup stop" : "to your destination";
-
-    if (trackedBus && trackedBus.latitude && trackedBus.longitude) {
-      meters = distanceInMeters(
-        trackedBus.latitude,
-        trackedBus.longitude,
-        target.latitude,
-        target.longitude
-      );
-      // Rain makes the traffic slower, so the ETA gets longer
-      minutes = applyRainDelay(
-        calculateEtaMinutes(meters, trackedBus.speed ?? 0),
-        rainy
-      );
-    }
-  }
 
   return (
     <div>
@@ -230,7 +147,7 @@ export default function Dashboard() {
                   <span className="dot dot-destination" />
                   <select
                     value={destinationId}
-                    onChange={(e) => changeDestination(e.target.value)}
+                    onChange={(e) => setDestinationId(e.target.value)}
                     aria-label="Destination stop"
                   >
                     {destinationOptions.map((s) => (
@@ -263,29 +180,27 @@ export default function Dashboard() {
             <h2 className="card-title">Shuttle timetable</h2>
 
             {trips.length === 0 && (
-              <p className="muted">No shuttle between these two stops</p>
-            )}
-
-            {trips.length > 0 && !firstOpenId && (
               <p className="muted">No more shuttles today</p>
             )}
 
-            <div className="trip-scroll" ref={scrollRef}>
+            {trips.length > 0 && (
+              <p className="muted small" style={{ marginTop: 0 }}>
+                Tap a shuttle marked Available to see it on the map
+              </p>
+            )}
+
+            <div className="trip-scroll">
               {trips.map((trip) => {
                 const favorite = favorites.some(
                   (f) => f.key === favoriteKey(trip.id, pickupId, destinationId)
                 );
                 const classes =
-                  "trip-row" +
-                  (trip.status === "Available" ? " clickable" : "") +
-                  (trip.status === "Unavailable" ? " past" : "") +
-                  (trip.id === selectedTripId ? " selected" : "");
+                  "trip-row" + (trip.status === "Available" ? " clickable" : "");
 
                 return (
                   <div
                     key={trip.id}
                     className={classes}
-                    data-first-open={trip.id === firstOpenId ? "true" : "false"}
                     onClick={() => handleSelect(trip)}
                   >
                     <div>
@@ -338,75 +253,6 @@ export default function Dashboard() {
         </div>
 
         <div className="dash-right">
-          <section className="card" ref={trackRef}>
-            <p className="eyebrow">Live tracking</p>
-            <h2 className="card-title">
-              {selectedTrip ? selectedRoute.name : "Track your shuttle"}
-            </h2>
-
-            {!selectedTrip && (
-              <div className="track-empty">
-                <MapIcon size={36} />
-                <p>Tap a shuttle marked Available to see its live location and route</p>
-              </div>
-            )}
-
-            {selectedTrip && (
-              <>
-                <div className="live-badge">
-                  <span className={"live-dot " + (live ? "on" : "off")} />
-                  {live ? "Live" : "Waiting for the driver"}
-                </div>
-                <div className="muted small">
-                  {formatClock(selectedTrip.departure)} {pickup.name} to{" "}
-                  {destination.name}
-                </div>
-
-                <div className="track-map">
-                  <MapView
-                    key={selectedTrip.id}
-                    buses={trackedBus ? [trackedBus] : []}
-                    selectedId={selectedRoute.busId}
-                    stops={selectedRoute.stops}
-                    pickupStopId={pickupId} destinationStopId={destinationId}
-                    route={ROUTE_PATHS[selectedRoute.id] || []}
-                    routeColor={selectedRoute.color}
-                  />
-                </div>
-
-                <div className="stat-row">
-                  <Stat icon={Bus} label="Shuttle" value={selectedRoute.busName} />
-                  <Stat
-                    icon={Clock}
-                    label="Est. arrival"
-                    value={minutes !== null ? formatEta(minutes) : "-"}
-                  />
-                  <Stat
-                    icon={RouteIcon}
-                    label="Distance"
-                    value={meters !== null ? formatDistance(meters) : "-"}
-                  />
-                  <Stat
-                    icon={Activity}
-                    label="Status"
-                    value={live ? trackedBus.status : "Offline"}
-                    valueClass={live ? "status-" + trackedBus.status : ""}
-                  />
-                </div>
-                <p className="muted small">
-                  Distance and ETA are measured {targetLabel}
-                </p>
-
-                {rainy && (
-                  <p className="rain-note">
-                    Rain may delay your shuttle, the estimated arrival includes
-                    extra time
-                  </p>
-                )}
-              </>
-            )}
-          </section>
-
           <WeatherCard />
         </div>
       </div>
