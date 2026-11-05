@@ -18,77 +18,63 @@ If you are developing a production application, we recommend using TypeScript wi
 
 # APU Smart Shuttle
 
-## 1. Project Overview
-
-APU Smart Shuttle is a web-based bus tracking and monitoring system designed for Asia Pacific University (APU) students.
-
-The system helps students check shuttle bus schedules, select their pickup and destination stops, and track shuttle bus locations through a web browser.
-
-Drivers can use a separate password-protected page to share their GPS locations with the system.
-
-## 2. Main Features
-
-- **Bus Timetable:** Students can view shuttle bus schedules.
-- **Stop Selection:** Students can select their pickup and destination stops.
-- **Live Bus Tracking:** Students can view the bus location on a map.
-- **Estimated Arrival Time (ETA):** Students can check the estimated arrival time and distance.
-- **Weather Information:** Weather conditions are considered when estimating arrival time.
-- **Favourite Trips:** Students can save their frequently used trips.
-- **Notifications:** Students receive reminders for their favourite trips.
-- **Driver GPS Sharing:** Drivers can manually start and stop GPS location sharing.
-
-## 3. Supported Shuttle Routes
-
-| Bus ID | Shuttle Bus | Route |
-|---|---|---|
-| BUS001 | APU-BUS-01 | APU – LRT Bukit Jalil |
-| BUS002 | APU-BUS-02 | APU – Parkhill |
-
 ## 4. System Workflow
 
-### Driver Side
+### 4.1 Driver Side
 
 1. The driver opens the `/driver` page.
 2. The driver enters the access code and selects a shuttle bus.
 3. The driver taps **Start Tracking** and allows GPS access.
-4. The smartphone sends location updates to Firebase Firestore.
+4. The driver's smartphone sends location updates to Firebase Firestore.
 5. The driver taps **Stop Tracking** when location sharing is no longer needed.
 
-### Student Side
+### 4.2 Student Side
 
-1. Students open the APU Smart Shuttle website.
+1. Students open the APU Smart Shuttle website using a mobile or desktop browser.
 2. Students select their pickup stop and destination.
-3. The system displays the generated shuttle timetable.
+3. The system generates and displays the shuttle timetable.
 4. Students select an available trip to open the live tracking map.
-5. Students can view the bus
+5. Students can view the bus location, estimated arrival time (ETA), distance, and bus status.
+
+### 4.3 Data Flow
+
+Driver's Smartphone (GPS) → Firebase Firestore → Student Web Application → Live Bus Tracking
+
+---
 
 ## 5. System Architecture
 
 The system follows a web-based architecture consisting of the frontend application, cloud database, and external services.
 
-### Main Components
+### 5.1 Main Components
 
 **1. Frontend – React and Vite**
+
 - Provides the student dashboard, timetable, tracking map, notifications, and driver page.
 - Accessible through mobile and desktop web browsers.
 
 **2. Database – Firebase Firestore**
+
 - Stores the current location information of each shuttle bus.
 - Provides real-time data updates to student web pages.
 
 **3. External Services**
-- OpenStreetMap: Provides map display.
-- Open-Meteo: Provides weather information for the Bukit Jalil area.
-- OSRM: Used to generate road route lines.
+
+- **OpenStreetMap:** Provides map display.
+- **Open-Meteo:** Provides weather information for the Bukit Jalil area.
+- **OSRM:** Used to generate road route lines.
 
 **4. Hosting – Vercel**
+
 - Hosts the web application.
 
-### System Data Flow
+### 5.2 System Data Flow
 
 The driver's smartphone obtains GPS location data and sends updates to Firebase Firestore. Student web pages receive the latest bus location from Firestore and display the bus position on the tracking map.
 
 The application calculates the estimated arrival time and bus status based on the available location, speed, and distance information.
+
+---
 
 ## 6. Technology Stack
 
@@ -103,13 +89,15 @@ The application calculates the estimated arrival time and bus status based on th
 | OSRM | Generates road route lines |
 | Vercel | Hosts the web application |
 
-The project is a web application that can be accessed through mobile and desktop browsers.
+**Platform:** Web application accessible through mobile and desktop browsers.
+
+---
 
 ## 7. Database Design
 
 The project uses Firebase Firestore as its cloud database to store and synchronise shuttle bus location information.
 
-### Bus Information
+### 7.1 Bus Information
 
 The system currently supports two shuttle buses:
 
@@ -118,19 +106,21 @@ The system currently supports two shuttle buses:
 | BUS001 | APU-BUS-01 | APU – LRT Bukit Jalil |
 | BUS002 | APU-BUS-02 | APU – Parkhill |
 
-### Data Storage
+### 7.2 Data Storage
 
 - Current bus location information is stored in Firebase Firestore.
 - Driver location updates are sent to the database.
 - Student web pages receive real-time location updates.
 - Bus location data is used to calculate distance, estimated arrival time (ETA), and bus status.
 
-### Data Access and Security
+### 7.3 Data Access and Security
 
 - Student users can read bus location information.
 - Only the authorised driver account can write bus location updates.
 - Firestore security rules restrict the allowed bus IDs, fields, and statuses.
 - Student favourites and notification history are stored locally in the student's browser instead of being uploaded to the server.
+
+---
 
 ## 8. API & External Services
 
@@ -143,7 +133,7 @@ The application integrates with external services to support its main functions.
 | Open-Meteo | Provides weather information |
 | OSRM | Used to generate road route line data |
 
-### Data Integration
+### 8.1 Data Integration
 
 - The driver page sends GPS location updates to Firebase Firestore.
 - Student pages receive bus location updates from Firestore.
