@@ -863,3 +863,27 @@ body {
     height: 60vh;
   }
 }
+
+/* Phone timetable rows */
+@media (max-width: 860px) {
+  .trip-row {
+    grid-template-columns: 64px 1fr;
+    row-gap: 10px;
+  }
+
+  .trip-right {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+
+  .trip-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .trip-note {
+    margin-top: 0;
+  }
+}

@@ -16,6 +16,7 @@ import WeatherCard from "../components/WeatherCard";
 
 function getGreeting(minutes) {
   const hour = Math.floor(minutes / 60);
+  if (hour < 5) return "Hello";
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
