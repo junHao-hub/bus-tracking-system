@@ -887,3 +887,25 @@ body {
     margin-top: 0;
   }
 }
+
+/* Phone top bar, icons only */
+@media (max-width: 860px) {
+  .top-nav {
+    gap: 4px;
+  }
+
+  .nav-link {
+    position: relative;
+    padding: 10px;
+  }
+
+  .nav-link span:not(.nav-badge) {
+    display: none;
+  }
+
+  .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 0;
+  }
+}

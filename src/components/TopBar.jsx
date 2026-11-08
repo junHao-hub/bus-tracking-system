@@ -26,6 +26,7 @@ export default function TopBar() {
             key={to}
             to={to}
             end={end}
+            aria-label={label}
             className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
           >
             <Icon size={20} />
